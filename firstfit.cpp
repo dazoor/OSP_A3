@@ -1,55 +1,77 @@
 #include <iostream>
+#include <fstream>
 #include <list>
-#include <cstddef>
+#include <unistd.h>
+#include "memory_alloc.h"
 
-struct Allocation {
-    std::size_t size;
-    void* space;
-};
 
-// Global variables to maintain lists of allocated and free chunks
 std::list<Allocation> allocatedChunks;
 std::list<Allocation> freeChunks;
 
 void* alloc(std::size_t chunk_size) {
-    // Search for a chunk in the free list that can satisfy the allocation request
-    for (auto it = freeChunks.begin(); it != freeChunks.end(); ++it) {
-        if (it->size >= chunk_size) {
-            // Found a chunk large enough
-            Allocation allocatedChunk = { chunk_size, it->space };
+    // search for chunk in the free list that can satisfy allocation request
+    for (auto i = freeChunks.begin(); i != freeChunks.end(); ++i) {
+        if (i->size >= chunk_size) {
+            // found large enough chunk
+            Allocation allocatedChunk = { chunk_size, i->space };
             
-            // Add the allocated chunk to the allocated list
+            // add allocated chunk to allocated list
             allocatedChunks.push_back(allocatedChunk);
 
-            // Adjust the free chunk's size and space
-            it->size -= chunk_size;
-            it->space = static_cast<char*>(it->space) + chunk_size;
+            // adjust free chunk's size and space
+            i->size -= chunk_size;
+            i->space = static_cast<char*>(i->space) + chunk_size;
 
             return allocatedChunk.space;
         }
     }
 
-    // If no suitable chunk was found, request more memory from the OS using sbrk
+    // if no suitable chunk found, request more memory from OS using sbrk
+    // https://stackoverflow.com/questions/62678780/what-is-the-compliant-way-to-handle-an-sbrk-failure
+    // error checking if comparison sourced from link above
     void* newSpace = sbrk(chunk_size);
-    if (newSpace == reinterpret_cast<void*>(-1)) {
+    if (newSpace == (void*) -1) {
         // sbrk failed to allocate memory
-        std::cerr << "Allocation failed." << std::endl;
+        std::cout << "Allocation failed." << std::endl;
         return nullptr;
     }
 
-    // Create an allocation for the new space and add it to the allocated list
+    // create allocation for new space and add to allocated list
     Allocation allocatedChunk = { chunk_size, newSpace };
     allocatedChunks.push_back(allocatedChunk);
 
+    // safety return
     return allocatedChunk.space;
 }
 
-int main() {
-    // Example usage
-    void* allocatedMemory = alloc(64);
-    if (allocatedMemory != nullptr) {
-        std::cout << "Memory allocated at address: " << allocatedMemory << std::endl;
+int main(int argc, char** argv) { 
+    // check number of args
+    if (argc != 2) {
+        std::cout << "Incorrect number of args\n" << std::endl;
+        return -1;
     }
 
-    return 0;
+    // open and check data file
+    std::ifstream inputFile(argv[2]);
+    if (!inputFile.is_open()) {
+        std::cout << "Failed to open data file." << std::endl;
+        return -1;
+    }
+
+    // reading and running
+    std::string line;
+    while (std::getline(inputFile, line)) {
+        size_t colonPos = line.find(':');
+        // finding colon to check if we are alloc or dealloc
+        if (colonPos != std::string::npos) {
+            std::string temp_chunk_size = line.substr(colonPos + 1, 3);
+            size_t chunk_size = std::stoul(temp_chunk_size);
+            alloc(chunk_size);
+        }
+        else {
+            //dealloc
+        }
+    }
+
+    inputFile.close();
 }
