@@ -5,9 +5,6 @@
 #include "memory_alloc.h"
 
 
-std::list<Allocation> allocatedChunks;
-std::list<Allocation> freeChunks;
-
 void* alloc(std::size_t chunk_size) {
     // search for chunk in the free list that can satisfy allocation request
     for (auto i = freeChunks.begin(); i != freeChunks.end(); ++i) {
@@ -37,7 +34,7 @@ void* alloc(std::size_t chunk_size) {
     }
 
     // create allocation for new space and add to allocated list
-    Allocation allocatedChunk = { chunk_size, newSpace };
+    Allocation allocatedChunk = {chunk_size, newSpace};
     allocatedChunks.push_back(allocatedChunk);
 
     // safety return
@@ -54,7 +51,7 @@ int main(int argc, char** argv) {
     // open and check data file
     std::ifstream inputFile(argv[2]);
     if (!inputFile.is_open()) {
-        std::cout << "Failed to open data file." << std::endl;
+        std::cout << "Failed to open data file.\n" << std::endl;
         return -1;
     }
 
@@ -69,9 +66,12 @@ int main(int argc, char** argv) {
             alloc(chunk_size);
         }
         else {
-            //dealloc
+            Allocation lastAllocatedChunk = allocatedChunks.back();
+            allocatedChunks.pop_back();
+            dealloc(lastAllocatedChunk.space);
         }
     }
 
     inputFile.close();
+    return 1;
 }

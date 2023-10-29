@@ -5,9 +5,6 @@
 #include "memory_alloc.h"
 
 
-std::list<Allocation> allocatedChunks;
-std::list<Allocation> freeChunks;
-
 void* alloc(std::size_t chunk_size) {
     // initialize best fit chunk as nullptr and best fit diff as large val
     Allocation* bestFitChunk = nullptr;
@@ -34,12 +31,12 @@ void* alloc(std::size_t chunk_size) {
         // Add the allocated chunk to the allocated list
         allocatedChunks.push_back(allocatedChunk);
 
-        // If there's some space left in the free chunk, split it
+        // if there's space left in free chunk, split it
         if (bestFitDiff > 0) {
             bestFitChunk->size = bestFitDiff;
             bestFitChunk->space = static_cast<char*>(bestFitChunk->space) + chunk_size;
         } else {
-            // Remove the chunk from the free list since it's fully used
+            // remove chunk from free list since its fully used
             freeChunks.erase(std::find(freeChunks.begin(), freeChunks.end(), *bestFitChunk));
         }
 
@@ -56,9 +53,45 @@ void* alloc(std::size_t chunk_size) {
         return nullptr;
     }
 
-    // Create an allocation for the new space and add it to the allocated list
-    Allocation allocatedChunk = { chunk_size, newSpace };
+    // create allocation for new space and add to allocated list
+    Allocation allocatedChunk = {chunk_size, newSpace};
     allocatedChunks.push_back(allocatedChunk);
 
+    // saftey return
     return allocatedChunk.space;
+}
+
+int main(int argc, char** argv) { 
+    // check number of args
+    if (argc != 2) {
+        std::cout << "Incorrect number of args\n" << std::endl;
+        return -1;
+    }
+
+    // open and check data file
+    std::ifstream inputFile(argv[2]);
+    if (!inputFile.is_open()) {
+        std::cout << "Failed to open data file.\n" << std::endl;
+        return -1;
+    }
+
+    // reading and running
+    std::string line;
+    while (std::getline(inputFile, line)) {
+        size_t colonPos = line.find(':');
+        // finding colon to check if we are alloc or dealloc
+        if (colonPos != std::string::npos) {
+            std::string temp_chunk_size = line.substr(colonPos + 1, 3);
+            size_t chunk_size = std::stoul(temp_chunk_size);
+            alloc(chunk_size);
+        }
+        else {
+            Allocation lastAllocatedChunk = allocatedChunks.back();
+            allocatedChunks.pop_back();
+            dealloc(lastAllocatedChunk.space);
+        }
+    }
+
+    inputFile.close();
+    return 1;
 }

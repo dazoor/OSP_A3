@@ -12,4 +12,9 @@ struct Allocation {
 // function to allocate memory, changes depending on best/first
 void* alloc(std::size_t chunk_size);
 
+void dealloc(void* chunk);
+
+std::list<Allocation> allocatedChunks;
+std::list<Allocation> freeChunks;
+
 #endif // MEMORY_ALLOC
